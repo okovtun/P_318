@@ -1,4 +1,5 @@
-﻿
+﻿https://github.com/okovtun/P_318.git
+
 TODO:
 1. Добавить английский язык в Visual Studio;
 2. Установить Visual Paradigm Community:
