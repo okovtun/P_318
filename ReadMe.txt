@@ -1,4 +1,5 @@
 ﻿https://github.com/okovtun/P_318.git
+https://www.youtube.com/playlist?list=PLeqyOOqxeiIMUN90Tc_iZRSIxSlThKLRV
 
 TODO:
 1. Добавить английский язык в Visual Studio;
