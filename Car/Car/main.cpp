@@ -1,7 +1,11 @@
 ﻿#include<Windows.h>
 #include<iostream>
 #include<conio.h>
-using namespace std;
+#include<thread>
+using namespace std::literals::chrono_literals;
+using std::cin;
+using std::cout;
+using std::endl;
 
 #define Enter		13
 #define	Escape		27
@@ -10,6 +14,7 @@ using namespace std;
 #define MAX_TANK_CAPACITY	120
 //define (определить).
 //Директива #define создает макроопределение, которое показывает компилятору ЧТО_ЗАМЕНИТЬ и ЧЕМ_ЗАМЕНИТЬ
+
 
 class Tank
 {
@@ -123,11 +128,22 @@ public:
 	}
 };
 
+/*
+	std::thread thread_name(&MemberFunction, &object);
+	member-variable - переменная-член класса
+	member-function - функиця-член класса
+*/
+
 class Car
 {
 	Engine engine;
 	Tank tank;
 	bool driver_inside;
+	struct
+	{
+		std::thread panel_thread;
+		std::thread engine_idle_thread;
+	}control;
 public:
 	Car(double consumption, int capacity) :engine(consumption), tank(capacity)
 	{
@@ -142,11 +158,17 @@ public:
 	void get_in()
 	{
 		driver_inside = true;
-		panel();
+		control.panel_thread = std::thread(&Car::panel, this);
 	}
 	void get_out()
 	{
 		driver_inside = false;
+		if (control.panel_thread.joinable())
+		{
+			control.panel_thread.join();
+			system("CLS");
+			cout << "Вы вышли мз машины" << endl;
+		}
 	}
 
 	void panel()const
@@ -154,10 +176,47 @@ public:
 		while (driver_inside)
 		{
 			system("CLS");
-			cout << "Fuel level: " << tank.get_fuel_level() << " liters" << endl;
+			cout << "Fuel level: " << tank.get_fuel_level() << " liters\t";
+			if (tank.get_fuel_level() < 5)
+			{
+				HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);	//Получаем окно консоли, и сохраняем его в HANDLE
+				SetConsoleTextAttribute(hConsole, 0xCF);
+				cout << "LOW FUEL";
+				SetConsoleTextAttribute(hConsole, 0x07);
+				//Функция SetConsoleTextAttribute(...) задает цвет фона и шрифта в заданном окне консоли
+				//0xCF и 0x07 - это шестнадцатеричный код цвета.
+				//Коды цветов всегда можно посмотреть в командной строке при помощи команды 'color';
+				//0x - этот префикс показывает, что дальше идет Шестнадцатеричное число.
+				//Старшая цифра - это цвет фона
+				//Младшая цифра - цвет текста
+			}
+			cout << endl;
 			cout << "Engine is " << (engine.started() ? "started" : "stopped") << endl;
 			Sleep(100);	//100 - это задержка в миллисекундах.
 		}
+	}
+	void engine_idle()
+	{
+		while (tank.give_fuel(engine.get_consumption_per_second()) && engine.started())
+			std::this_thread::sleep_for(1s);
+	}
+	void start()
+	{
+		if (tank.get_fuel_level())
+		{
+			engine.start();
+			control.engine_idle_thread = std::thread(&Car::engine_idle, this);
+		}
+		else
+		{
+			cout << "Проверьте уровент топлива" << endl;
+		}
+	}
+	void stop()
+	{
+		engine.stop();
+		if (control.engine_idle_thread.joinable())
+			control.engine_idle_thread.join();
 	}
 
 	void control_car()
@@ -167,6 +226,7 @@ public:
 		{
 			//Функция _kbhit() в фоновом режиме отслеживает нажатие клавиши . 
 			//Если клавиша была нажата _kbhit() возвращает 'true', в противном слечае - 'false'.
+			key = 0;
 			if (_kbhit())
 			{
 				key = _getch();	//Функция _getch() ожидает нажатие клавиши, и возвращает ASCII-код нажатой клавиши.
@@ -193,6 +253,13 @@ public:
 					tank.fill(fuel_level);
 				}
 				break;
+			case 'I':	//Ignition - зажигание
+			case 'i':
+				if (driver_inside)engine.started() ? stop() : start();
+				break;
+			case Escape:
+				stop();
+				get_out();
 			}
 		} while (key != Escape);
 
@@ -230,8 +297,8 @@ Engine engine(10);
 engine.info();
 #endif
 
-	Car bmw(10, 80);
-	bmw.control_car();
-	bmw.info();
+Car bmw(10, 80);
+bmw.control_car();
+bmw.info();
 
 }
